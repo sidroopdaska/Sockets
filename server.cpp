@@ -34,7 +34,7 @@ int main(int argc, char* argv[]){
 		error("ERROR opening socket");
 	
 	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = portNumber;
+	serverAddr.sin_port = htons(portNumber);
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
 	
 	if(bind(socketFD, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
@@ -53,6 +53,7 @@ int main(int argc, char* argv[]){
 	fprintf(stdout, "Here is the message: %s\n", readBuffer);
 
 	const char* writeBuffer = "I got your message";
+	cout << strlen(writeBuffer) << endl;
 
 	if(write(newSocketFD, writeBuffer, strlen(writeBuffer)) < 0)
 		error("ERROR writing to the socket");
