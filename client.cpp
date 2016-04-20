@@ -21,6 +21,7 @@ void error(const char* message){
 int main(int argc, char* argv[]){
 
 	int socketFD, portNumber;
+	bool stop = false;
 	struct sockaddr_in serverAddr;
 	struct hostent *server;
 	char writeBuffer[256];
@@ -33,6 +34,7 @@ int main(int argc, char* argv[]){
 	portNumber = atoi(argv[2]);
 
 	// Create a socket with the socket() system call
+	fprintf(stdout, "=> Client socket has been created...\n");
 	socketFD = socket(AF_INET, SOCK_STREAM, 0);
 	if (socketFD < 0)
 		error("Error opening socket");
@@ -51,20 +53,32 @@ int main(int argc, char* argv[]){
 	bcopy((char*)server->h_addr, (char*)&serverAddr.sin_addr.s_addr, server->h_length);
 
 	// Connect the socket to the address of the server using the connect() system call
+	fprintf(stdout, "=> Connecting to the server port number: %d\n", portNumber);
+	fprintf(stdout, "=> Awaiting confirmation from the server...\n");
+
 	if(connect(socketFD, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
 		error("ERROR connecting!");
 
+	fprintf(stdout, "=> Connection confirmed, you are good to go...\n");
+
 	// Send and receive data
-	cout << "Please enter a message: ";
-	cin.getline(writeBuffer, sizeof(writeBuffer));
-	if (write(socketFD, writeBuffer, strlen(writeBuffer)) < 0)
-		error("ERROR writing to the socket!");
+	fprintf(stdout, "=> Enter # to end the connection...\n");
+	do {
+		cout << "Client: ";
+		cin.getline(writeBuffer, sizeof(writeBuffer));
+		if (strcmp(writeBuffer, "#") == 0)
+			stop = true;
 
-	bzero(readBuffer, sizeof(readBuffer));
-	if(read(socketFD, readBuffer, sizeof(readBuffer)) < 0)
-		error("ERROR reading from socket!");	
-	cout << "\nThe server messsage is : " << readBuffer << endl;
+		if (write(socketFD, writeBuffer, strlen(writeBuffer)) < 0)
+			error("ERROR writing to the socket!");
 
+		bzero(readBuffer, sizeof(readBuffer));
+		if(read(socketFD, readBuffer, sizeof(readBuffer)) < 0)
+			error("ERROR reading from socket!");	
+		cout << "Server: " << readBuffer << endl;
+	} while(!stop);
+
+	fprintf(stdout, "=> Connection terminated with %s.\n", argv[1]);
 	// Close file descriptors
 	close(socketFD);
 
