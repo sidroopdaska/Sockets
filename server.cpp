@@ -12,14 +12,14 @@
 #include <netinet/in.h>
 
 using namespace std;
-void handleConnection(int);
+void handleConnection(int, int);
 void error(const char* msg){
 	perror(msg);
 	exit(1);
 }
 
 int main(int argc, char* argv[]){
-	int socketFD, newSocketFD, portNumber;
+	int socketFD, newSocketFD, portNumber, numberOfClients = 0;
 	struct sockaddr_in serverAddr, clientAddr;
 	socklen_t clientLength;
 
@@ -45,6 +45,7 @@ int main(int argc, char* argv[]){
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
 	
 	// Binding the Socket to the Server IP Addr + Port Number details
+	fprintf(stdout, "=> Server socket has been created...\n");
 	if(bind(socketFD, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
 		error("ERROR binding socket");
 
@@ -55,17 +56,23 @@ int main(int argc, char* argv[]){
 	// until a client connects with the server.
 	clientLength =  sizeof(clientAddr);
 	while(1){
+		fprintf(stdout, "\n\n=> Looking for clients...\n");
+		
 		newSocketFD = accept(socketFD, (struct sockaddr*)&clientAddr, &clientLength);
 		if (newSocketFD < 0) 
 			error("ERROR making a new connection");
-
+		
+		numberOfClients++;
+		fprintf(stdout, "=> Connected with the client #%d.\n", numberOfClients);
+		
 		int pid = fork();
 		if(pid < 0)
 			error("Error on Fork");
 
 		if(pid == 0){
 			close(socketFD);
-			handleConnection(newSocketFD);
+			handleConnection(newSocketFD, numberOfClients);
+			fprintf(stdout, "Terminated connection with client #%d", numberOfClients);
 			exit(0);
 		} else {
 			close(newSocketFD);
@@ -76,18 +83,27 @@ int main(int argc, char* argv[]){
 	return 0;
 }
 
-void handleConnection(int newSocketFD){
+void handleConnection(int newSocketFD, int clientID){
 
 	char readBuffer[256];
-	bzero(readBuffer, sizeof(readBuffer));
+	char writeBuffer[256];
+	bzero(writeBuffer, sizeof(readBuffer));
+	bool stop = false;
 
-	// Reading and writing data over the socket once a connection has been established.
-	if(read(newSocketFD, readBuffer, sizeof(readBuffer)) < 0)
-		error("ERROR reading from socket!");
-	fprintf(stdout, "Here is the message: %s\n", readBuffer);
+	while(!stop){
+		// Reading and writing data over the socket once a connection has been established.
+		bzero(readBuffer, sizeof(readBuffer));
+		if(read(newSocketFD, readBuffer, sizeof(readBuffer)) < 0)
+			error("ERROR reading from socket!");
+		fprintf(stdout, "Client #%d: %s\n", clientID, readBuffer);
 
-	const char* writeBuffer = "I got your message"; // string literal
-	if(write(newSocketFD, writeBuffer, strlen(writeBuffer)) < 0)
-		error("ERROR writing to the socket");
+		if(strcmp(readBuffer, "#") == 0){
+			strncpy(writeBuffer, "Terminating connection...", sizeof(writeBuffer));
+			stop = true;
+		} else 
+			strncpy(writeBuffer, "I got your message", sizeof(writeBuffer));
 
+		if(write(newSocketFD, writeBuffer, strlen(writeBuffer)) < 0)
+			error("ERROR writing to the socket");
+	}
 }
