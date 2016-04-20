@@ -12,7 +12,7 @@
 #include <netinet/in.h>
 
 using namespace std;
-
+void handleConnection(int);
 void error(const char* msg){
 	perror(msg);
 	exit(1);
@@ -20,13 +20,11 @@ void error(const char* msg){
 
 int main(int argc, char* argv[]){
 	int socketFD, newSocketFD, portNumber;
-	char readBuffer[256];
 	struct sockaddr_in serverAddr, clientAddr;
 	socklen_t clientLength;
 
 	// Initializing buffers to zero.
 	bzero((char*)&serverAddr, sizeof(serverAddr));
-	bzero(readBuffer, sizeof(readBuffer));
 	
 	// Obtaining port number from the command line arguments
 	if(argc < 2){
@@ -56,23 +54,40 @@ int main(int argc, char* argv[]){
 	// Accept a connection with the accept() system call. This call typically blocks
 	// until a client connects with the server.
 	clientLength =  sizeof(clientAddr);
-	newSocketFD = accept(socketFD, (struct sockaddr*)&clientAddr, &clientLength);
-	if (newSocketFD < 0) {
-		error("ERROR making a new connection");
+	while(1){
+		newSocketFD = accept(socketFD, (struct sockaddr*)&clientAddr, &clientLength);
+		if (newSocketFD < 0) 
+			error("ERROR making a new connection");
+
+		int pid = fork();
+		if(pid < 0)
+			error("Error on Fork");
+
+		if(pid == 0){
+			close(socketFD);
+			handleConnection(newSocketFD);
+			exit(0);
+		} else {
+			close(newSocketFD);
+		}
 	}
 	
+	close(socketFD);
+	return 0;
+}
+
+void handleConnection(int newSocketFD){
+
+	char readBuffer[256];
+	bzero(readBuffer, sizeof(readBuffer));
+
 	// Reading and writing data over the socket once a connection has been established.
 	if(read(newSocketFD, readBuffer, sizeof(readBuffer)) < 0)
 		error("ERROR reading from socket!");
 	fprintf(stdout, "Here is the message: %s\n", readBuffer);
 
-	const char* writeBuffer = "I got your message";
+	const char* writeBuffer = "I got your message"; // string literal
 	if(write(newSocketFD, writeBuffer, strlen(writeBuffer)) < 0)
 		error("ERROR writing to the socket");
-	
-	// Close file descriptors
-	close(newSocketFD);
-	close(socketFD);
 
-	return 0;
 }
